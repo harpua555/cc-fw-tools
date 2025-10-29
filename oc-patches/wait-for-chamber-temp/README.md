@@ -18,10 +18,10 @@ TEMPERATURE_WAIT SENSOR=box MINIMUM=45 MAXIMUM=60
 --- This will wait (indefinitely) for the chamber temp to reach 45 before proceeding to the next line of gcode
 
 ## TODO:
--Enable MAXIMUM evaluation as well as minimum  
--Ensure arg1 is 'box', return if not  
--Emit error to log for the above  
--Patch stock (heater) branch of TEMPERATURE_WAIT to prevent soft-locking while waiting
+- [ ] Enable MAXIMUM evaluation as well as minimum  
+- [ ] Ensure arg1 is 'box', return if not  
+- [ ] Emit error to log for the above  
+- [ ] Patch stock (heater) branch of TEMPERATURE_WAIT to prevent soft-locking while waiting
 
 ## Technical:
 
@@ -32,8 +32,9 @@ New code range: 0x00391EC0–0x00391F34
 Patched Original Bytes  
 ```
 0x00165A30  EB FD F2 74 => 22 B1 08 EA
-```
+
 bl sub_e2408  →  b 0x00391EC0
+```
 
 Used:  
 simple_bus_request to get chamber temp  
