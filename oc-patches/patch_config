@@ -26,6 +26,7 @@ HOME_POSITION_FRONT_RIGHT=true
 REPLACE_BOOTLOGO=true
 SET_FIRMWARE_VERSION=true
 ALWAYS_ALLOW_Z_OFFSET_ADJUST=true
+WAIT_FOR_CHAMBER_TEMP=true
 
 # 10-999mm (700 is CC default) allowed for bowden length - max can be increased if desired
 BOWDEN_LENGTH_MM=710
