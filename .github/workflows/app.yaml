@@ -1,7 +1,8 @@
-name: Build OpenCentauri FW
+name: Build OpenCentauri App
 
 on:
   workflow_call:
+  pull_request:
   workflow_dispatch:
   push:
     branches:
