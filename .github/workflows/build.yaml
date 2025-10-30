@@ -15,10 +15,13 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      REPOSITORY_ROOT: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
           lfs: true
 
       - name: Install dependencies
