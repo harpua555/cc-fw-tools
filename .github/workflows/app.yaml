@@ -1,0 +1,58 @@
+name: Build OpenCentauri FW
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - temp-wait
+
+env:
+  FW_VER: 1.1.40
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      REPOSITORY_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          lfs: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt install -y bsdiff
+      
+      - name: Download firmware
+        run: |
+          ./fwdl.sh $FW_VER
+
+      - name: Unpack firmware
+        run: |
+          F=$(ls FW/FW-CentauriCarbon-v${FW_VER}-*.bin | head -n1)
+          sudo ./unpack.sh "$F"
+
+      - name: Apply patches (produces patched app)
+        run: |
+          git fetch --tags --force || true
+          git tag -f "v${FW_VER}" "$(git rev-parse HEAD)" || true
+          sudo python3 ./oc-patches/patch_planner.py $FW_VER
+
+      - name: Upload patched app
+        uses: actions/upload-artifact@v4
+        with:
+          name: patched-app-${{ env.FW_VER }}-${{ github.run_number }}
+          path: unpacked/squashfs-root/app/app
+
+      - name: Pack firmware
+        run: |
+          sudo ./pack.sh
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: update/update.swu
