@@ -11,3 +11,4 @@ options.cfg
 auto_install.sh
 free_fwupdate.py
 free_root_shell.py
+pr-report/
