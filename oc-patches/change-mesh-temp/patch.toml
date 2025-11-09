@@ -1,5 +1,5 @@
 id   = "bed_mesh_temp"
-name = "Customize bed mesh temperature"
+name = "Customize bed mesh temperature (default is 60)"
 compatible_versions = ["1.1.40"]
 after = ["base"]
 run = ["./patch.py"]
