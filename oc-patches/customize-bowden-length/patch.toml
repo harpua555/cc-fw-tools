@@ -1,5 +1,5 @@
 id   = "bowden_length"
-name = "Customize bowden tube length"
+name = "Customize bowden tube length in millimeters (default is 700)"
 compatible_versions = ["1.1.40"]
 after = ["base"]
 run = ["./patch.py"]

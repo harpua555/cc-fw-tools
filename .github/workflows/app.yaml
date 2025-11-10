@@ -8,6 +8,7 @@ on:
     branches:
       #- main
       - temp-wait
+      - feature/dev
 
 env:
   FW_VER: 1.1.40
