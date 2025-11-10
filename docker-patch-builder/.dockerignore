@@ -1,0 +1,21 @@
+# VCS and OS metadata
+.git
+.gitignore
+**/.DS_Store
+**/Thumbs.db
+**/__pycache__
+**/*.pyc
+
+# Local outputs and artifacts not needed at build time
+outputs/*
+!outputs/.gitkeep
+
+# Keep cc-fw-tools directory present but empty; populate in container at runtime
+cc-fw-tools/*
+!cc-fw-tools/.gitkeep
+
+# Temporary archives that might be created during staging
+*.zip
+*.tar
+*.tar.gz
+*.tgz
