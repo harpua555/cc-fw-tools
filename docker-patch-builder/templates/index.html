@@ -1,0 +1,253 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>OpenCentauri Custom Patch Builder</title>
+    <style>
+        :root {
+            --bg: #0f1116;
+            --panel: #161a22;
+            --card: #1b2130;
+            --text: #e6e6e6;
+            --muted: #9aa4b2;
+            --border: #2a3242;
+            --accent: #39b36e;
+            --danger: #e05252;
+        }
+        html, body { height: 100%; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 32px auto;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 24px 28px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+        }
+        h2 { margin: 0 0 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+        h3 { margin: 20px 0 8px; color: var(--muted); font-weight: 600; }
+        label { display: block; margin: 10px 0 6px; font-weight: 600; }
+        input[type="text"], input[type="number"], select {
+            width: 100%; padding: 8px 10px; border-radius: 6px; background: #0e1220; color: var(--text);
+            border: 1px solid var(--border); box-sizing: border-box;
+        }
+        .btn { display: inline-block; background: var(--accent); color: #fff; padding: 10px 14px; border: 0; border-radius: 6px; cursor: pointer; text-decoration: none; }
+        .btn:disabled { opacity: .6; cursor: not-allowed; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+        .muted { color: var(--muted); font-size: 0.9em; }
+        .success { background: #10321e; color: #c2f0d0; border: 1px solid #1f6b3e; padding: 10px; border-radius: 6px; margin-top: 16px; }
+        .error { background: #381a1c; color: #ffc5c8; border: 1px solid #6d2b33; padding: 10px; border-radius: 6px; margin-top: 16px; }
+        .patch-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+        @media (min-width: 920px) { .patch-grid { grid-template-columns: 1fr 1fr; } }
+        .header-row { display:flex; align-items:center; justify-content: space-between; gap: 12px; }
+    </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-row">
+      <h2>Custom Patch Configuration</h2>
+    </div>
+
+    {% if download_ready %}
+        <div class="success" style="text-align:center;">
+            Build complete! Your custom firmware is ready.
+            <div style="margin-top:10px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+              <a class="btn btn-lg" href="{{ url_for('download', filename=artifact_name) }}">Download custom firmware</a>
+              {% if artifact2_name %}
+                <a class="btn btn-lg" href="{{ url_for('download', filename=artifact2_name) }}">Download patched app</a>
+              {% endif %}
+            </div>
+        </div>
+    {% elif building %}
+        <div class="success">
+            Build started. This may take up to several minutes.
+            <pre id="build-msg" style="white-space:pre-wrap"></pre>
+        </div>
+        <script>
+        (function poll(){
+            fetch('/status', { credentials: 'same-origin' }).then(r=>r.json()).then(d=>{
+                const m = document.getElementById('build-msg');
+                if(m && d.message) m.textContent = d.message;
+                if(d.state === 'success'){
+                    window.location.href = '{{ url_for('index') }}';
+                } else if(d.state === 'error'){
+                    window.location.href = '{{ url_for('index') }}?err=1';
+                } else {
+                    setTimeout(poll, 2000);
+                }
+            }).catch(()=>setTimeout(poll, 3000));
+        })();
+        </script>
+    
+{% elif error %}
+        <div class="error">
+            Build Error: {{ error }}
+        </div>
+    {% elif errors %}
+        <div class="error">
+            Please fix the following:
+            <ul>
+                {% for e in errors %}
+                <li>{{ e }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <form method="POST">
+        <label for="repo_url">Source Repository</label>
+        <select id="repo_url" name="repo_url" {% if not need_init %}disabled{% endif %}>
+            {% for r in repos %}
+              <option value="{{ r.url }}" {{ 'selected' if repo_selected==r.url else '' }}>{{ r.label }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="branch_name">Branch</label>
+        <select id="branch_name" name="branch_name" {% if not need_init %}disabled{% endif %}></select>
+        <script>
+          const branchesMap = {{ branches_map|tojson }};
+          const repoUrlToKey = { {% for r in repos %}"{{ r.url }}":"{{ r.key }}"{% if not loop.last %},{% endif %}{% endfor %} };
+          function populateBranches(){
+            const repo = document.getElementById('repo_url').value;
+            const key = repoUrlToKey[repo];
+            const list = branchesMap[key] || [];
+            const sel = document.getElementById('branch_name');
+            sel.innerHTML = '';
+            list.forEach(function(b){ const o=document.createElement('option'); o.value=b; o.textContent=b; sel.appendChild(o); });
+            {% if branch_selected %}
+            const preset = "{{ branch_selected }}";
+            if(list.indexOf(preset) !== -1) sel.value = preset;
+            {% endif %}
+          }
+          document.addEventListener('DOMContentLoaded', populateBranches);
+          document.getElementById('repo_url').addEventListener('change', populateBranches);
+          function showInitBanner(){
+            const b = document.getElementById('init-banner');
+            if (b) b.style.display = 'block';
+          }
+          function pollInit(){
+            fetch('/status', { credentials: 'same-origin' }).then(r=>r.json()).then(d=>{
+              const m = document.getElementById('init-msg');
+              if(m && d.message) m.textContent = d.message;
+              if(d.state === 'init_success'){
+                window.location.href = '{{ url_for('index') }}';
+              } else if(d.state === 'error'){
+                window.location.href = '{{ url_for('index') }}?err=1';
+              } else {
+                setTimeout(pollInit, 1500);
+              }
+            }).catch(()=>setTimeout(pollInit, 2000));
+          }
+          function initSource(ev){
+            try { if (ev) ev.preventDefault(); } catch(e) {}
+            console.log('[init] clicked');
+            showInitBanner();
+            const repo = document.getElementById('repo_url').value;
+            const branch = document.getElementById('branch_name').value;
+            const url = '/init-get?repo_url=' + encodeURIComponent(repo) + '&branch_name=' + encodeURIComponent(branch);
+            fetch(url, {
+              method: 'GET',
+              credentials: 'same-origin'
+            }).then(r => {
+              console.log('[init] response', r.status);
+              pollInit();
+            }).catch(err => { console.error('[init] error', err); pollInit(); });
+          }
+          function restartSource(ev){
+            try { if (ev) ev.preventDefault(); } catch(e) {}
+            const b = document.getElementById('init-banner');
+            if (b){ b.style.display='block'; document.getElementById('init-msg').textContent='Resetting...'; }
+            fetch('/reset', { credentials: 'same-origin', method:'POST' }).then(()=>{ window.location.href='{{ url_for('index') }}'; })
+              .catch(()=>{ window.location.href='{{ url_for('index') }}'; });
+          }
+        </script>
+
+        <div id="init-banner" class="success" style="display:none; margin-top:12px;">
+          Loading source... this may take a minute.
+          <pre id="init-msg" style="white-space:pre-wrap"></pre>
+        </div>
+
+        {% if need_init %}
+          <div style="margin:12px 0;">
+          <button type="button" class="btn btn-lg" onclick="initSource(event)">Load source</button>
+          </div>
+        {% else %}
+          <div style="margin:12px 0;">
+            <button type="button" class="btn btn-lg" style="background: var(--danger);" onclick="restartSource(event)">Restart with branch selection</button>
+          </div>
+        {% endif %}
+
+        <label for="fw_version">Firmware Version</label>
+        <select id="fw_version" name="fw_version" disabled>
+            <option value="1.1.40" selected>1.1.40</option>
+        </select>
+        <input type="hidden" name="fw_version" value="1.1.40" />
+
+        {% if not need_init %}<h3>Available Patches</h3>
+        <div class="patch-grid">
+        {% for p in patches %}
+            <div class="card">
+                <strong>{{ p.name }}</strong>
+                <div class="muted">ID: {{ p.id }} | Policy: {{ p.execution_policy }}</div>
+                {% if p.execution_policy|lower == 'matchesenv' %}
+                    <label style="margin-top:8px; display:block;">
+                        Enable:
+                        {% set en = form_values.get('enable__' + p.id, 'true') if form_values else 'true' %}
+                        <select name="enable__{{ p.id }}">
+                            <option value="false" {{ 'selected' if en=='false' else '' }}>False</option>
+                            <option value="true" {{ 'selected' if en=='true' else '' }}>True</option>
+                        </select>
+                    </label>
+                {% else %}
+                    <div class="muted" style="margin-top:8px;">Always applied</div>
+                {% endif %}
+
+                {% if extra_fields.get(p.id) %}
+                    <div style="margin-top:8px;">
+                        {% for field in extra_fields[p.id] %}
+                            <label for="{{ p.id }}__{{ field.key }}">{{ field.label }}</label>
+                            {% if field.type == 'number' %}
+                                {% set fk = p.id ~ '__' ~ field.key %}
+                                <input type="number" id="{{ p.id }}__{{ field.key }}" name="{{ p.id }}__{{ field.key }}" min="{{ field.min }}" max="{{ field.max }}" value="{{ form_values.get(fk, field.default) if form_values else field.default }}">
+                            {% else %}
+                                {% set fk = p.id ~ '__' ~ field.key %}
+                                <input type="text" id="{{ p.id }}__{{ field.key }}" name="{{ p.id }}__{{ field.key }}" value="{{ form_values.get(fk, field.default) if form_values else field.default }}">
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+        </div>
+        {% endif %}
+
+        <div style="display:flex; align-items:center; justify-content:center; gap:18px; margin-top:18px;">
+          <label class="muted" style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" name="adv_app_binary">
+            ADVANCED - Provide patched app binary?
+          </label>
+          <button class="btn btn-lg" type="submit" name="action" value="build" {% if need_init %}disabled{% endif %}>Build custom firmware</button>
+        </div>
+    </form>
+  </div>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
